@@ -1,64 +1,102 @@
 export const runtime = 'nodejs';
 import { NextResponse } from 'next/server'
 import { database } from '@/lib/database'
+import { getEnvironmentConfig, validateEnvironment, getServiceEndpoints } from '@/lib/environment'
 
 export async function GET() {
   const startTime = Date.now()
   
-  const needs = ['SOLVER_URL','SPOONACULAR_KEY']
-  const optional = ['DATABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_ANON_KEY']
-  
-  const missing = needs.filter((k)=>!process.env[k])
-  const optionalMissing = optional.filter((k)=>!process.env[k])
+  // Get comprehensive environment configuration
+  const config = getEnvironmentConfig()
+  const validation = validateEnvironment()
+  const endpoints = getServiceEndpoints()
   
   // Enhanced database health check
   const dbHealth = await database.healthCheck()
   
-  // Test solver connectivity if configured
-  let solverHealthy = false
-  if (process.env.SOLVER_URL) {
-    try {
-      const solverResponse = await fetch(`${process.env.SOLVER_URL}/health`, {
-        cache: 'no-store',
-        signal: AbortSignal.timeout(5000)
-      })
-      solverHealthy = solverResponse.ok
-    } catch {
-      solverHealthy = false
+  // Test external services connectivity with timeout protection
+  const serviceTests = await Promise.allSettled([
+    // Solver service test
+    config.services.solver.configured 
+      ? fetch(`${config.services.solver.url}/health`, {
+          cache: 'no-store',
+          signal: AbortSignal.timeout(5000)
+        }).then(res => ({ service: 'solver', ok: res.ok, status: res.status }))
+        .catch(err => ({ service: 'solver', ok: false, error: err.message }))
+      : Promise.resolve({ service: 'solver', ok: false, error: 'Not configured' }),
+    
+    // Spoonacular API test
+    config.services.spoonacular.configured 
+      ? fetch(`https://api.spoonacular.com/recipes/random?apiKey=${config.services.spoonacular.key}&number=1`, {
+          cache: 'no-store',
+          signal: AbortSignal.timeout(5000)
+        }).then(res => ({ service: 'spoonacular', ok: res.ok, status: res.status }))
+        .catch(err => ({ service: 'spoonacular', ok: false, error: err.message }))
+      : Promise.resolve({ service: 'spoonacular', ok: false, error: 'Not configured' }),
+    
+    // OpenFoodFacts test
+    fetch('https://world.openfoodfacts.org/api/v0/product/test.json', {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(5000)
+    }).then(res => ({ service: 'openfoodfacts', ok: res.ok, status: res.status }))
+     .catch(err => ({ service: 'openfoodfacts', ok: false, error: err.message }))
+  ])
+  
+  // Process service test results
+  const services: Record<string, any> = {}
+  serviceTests.forEach((result, index) => {
+    const serviceNames = ['solver', 'spoonacular', 'openfoodfacts']
+    const serviceName = serviceNames[index]
+    
+    if (result.status === 'fulfilled') {
+      services[serviceName] = result.value
+    } else {
+      services[serviceName] = { 
+        service: serviceName, 
+        ok: false, 
+        error: result.reason?.message || 'Test failed' 
+      }
     }
-  }
+  })
   
   const responseTime = Date.now() - startTime
-  const isHealthy = missing.length === 0
   const hasDatabase = dbHealth.postgres || dbHealth.supabase
+  const isHealthy = validation.valid && hasDatabase
   
   return NextResponse.json({ 
     ok: isHealthy,
-    status: {
-      required: {
-        missing,
-        configured: needs.filter(k => process.env[k]).length
-      },
-      optional: {
-        missing: optionalMissing,
-        configured: optional.filter(k => process.env[k]).length
-      },
+    environment: {
+      mode: config.mode,
+      production: config.production,
+      configured_services: Object.entries(config.services)
+        .filter(([_, service]) => service.configured)
+        .map(([name, _]) => name),
+      validation: {
+        valid: validation.valid,
+        issues: validation.issues,
+        recommendations: validation.recommendations
+      }
+    },
+    services: {
       database: {
         postgres: dbHealth.postgres,
         supabase: dbHealth.supabase,
         status: hasDatabase ? 'connected' : 'not_configured',
         error: dbHealth.error?.message
       },
-      solver: {
-        configured: !!process.env.SOLVER_URL,
-        healthy: solverHealthy
-      },
-      mode: optionalMissing.length > 0 ? 'demo' : 'full'
+      external: services
     },
-    responseTime: `${responseTime}ms`,
-    timestamp: new Date().toISOString(),
-    version: '0.1.1'
+    performance: {
+      response_time_ms: responseTime,
+      database_available: hasDatabase,
+      external_services_tested: serviceTests.length
+    },
+    meta: {
+      timestamp: new Date().toISOString(),
+      version: '0.1.1',
+      phase: 'Phase 3B - Production Integration'
+    }
   }, {
-    status: isHealthy && hasDatabase ? 200 : 503
+    status: isHealthy ? 200 : 503
   })
 }
