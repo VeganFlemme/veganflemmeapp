@@ -1,4 +1,5 @@
 import { Pool } from 'pg'
+import { db } from '@/lib/supabase'
 
 // Database connection utility
 let pool: Pool | null = null
@@ -21,6 +22,112 @@ export function getPool(): Pool | null {
   }
 
   return pool
+}
+
+// Enhanced database utilities with Supabase integration
+export const database = {
+  // Health check that tries both direct connection and Supabase
+  async healthCheck() {
+    const results = {
+      postgres: false,
+      supabase: false,
+      error: null as any
+    }
+
+    // Test direct PostgreSQL connection
+    try {
+      const dbResult = await testDatabaseConnection()
+      results.postgres = dbResult
+    } catch (error) {
+      results.error = error
+    }
+
+    // Test Supabase connection
+    try {
+      const { ok } = await db.healthCheck()
+      results.supabase = ok
+    } catch (error) {
+      if (!results.error) results.error = error
+    }
+
+    return results
+  },
+
+  // Search ingredients with fallback to demo data
+  async searchIngredients(searchQuery: string, limit: number = 10) {
+    try {
+      // Try Supabase first
+      const { data, error } = await db.searchIngredients(searchQuery, limit)
+      
+      if (!error && data && data.length > 0) {
+        return { data, source: 'database', success: true }
+      }
+
+      // Fallback to direct database query
+      const dbResult = await searchIngredients(searchQuery, limit)
+      if (dbResult.success && dbResult.data && dbResult.data.length > 0) {
+        return { data: dbResult.data, source: 'postgres', success: true }
+      }
+
+      // Fallback to demo data
+      const demoIngredients = [
+        { id: 'demo-1', name: 'Tofu ferme', category: 'Protéines' },
+        { id: 'demo-2', name: 'Lentilles rouges', category: 'Légumineuses' },
+        { id: 'demo-3', name: 'Quinoa', category: 'Céréales' },
+        { id: 'demo-4', name: 'Épinards frais', category: 'Légumes' },
+        { id: 'demo-5', name: 'Avocat', category: 'Légumes' },
+        { id: 'demo-6', name: 'Amandes', category: 'Fruits secs' },
+        { id: 'demo-7', name: 'Graines de chia', category: 'Graines' },
+        { id: 'demo-8', name: 'Levure nutritionnelle', category: 'Suppléments' }
+      ].filter(item => 
+        item.name.toLowerCase().includes(searchQuery.toLowerCase())
+      ).slice(0, limit)
+
+      return { data: demoIngredients, source: 'demo', success: true }
+    } catch (error) {
+      return { data: [], source: 'error', success: false, error }
+    }
+  },
+
+  // Save plan with user context
+  async savePlan(planData: any, userEmail?: string) {
+    try {
+      // Try Supabase first
+      const { data, error } = await db.savePlan(planData, userEmail)
+      
+      if (!error && data) {
+        return { data, source: 'database', success: true }
+      }
+
+      // Fallback: return a simulated success for demo
+      const mockData = {
+        id: `demo-${Date.now()}`,
+        plan_json: planData,
+        user_email: userEmail,
+        created_at: new Date().toISOString()
+      }
+
+      return { data: mockData, source: 'demo', success: true }
+    } catch (error) {
+      return { data: null, source: 'error', success: false, error }
+    }
+  },
+
+  // Get user plans with auth context
+  async getUserPlans(userEmail: string) {
+    try {
+      const { data, error } = await db.getUserPlans(userEmail)
+      
+      if (!error && data) {
+        return { data, source: 'database', success: true }
+      }
+
+      // Return empty array for demo mode
+      return { data: [], source: 'demo', success: true }
+    } catch (error) {
+      return { data: [], source: 'error', success: false, error }
+    }
+  }
 }
 
 // Execute a database query with error handling

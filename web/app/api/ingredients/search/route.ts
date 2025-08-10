@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { searchIngredients } from '@/lib/database'
+import { database } from '@/lib/database'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -17,28 +17,21 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const result = await searchIngredients(query, limit)
+    const result = await database.searchIngredients(query, limit)
     
     if (!result.success) {
-      // If database is not available, return empty results with info
-      if (result.error?.includes('not configured')) {
-        return NextResponse.json({
-          ok: true,
-          data: [],
-          message: 'Database not configured - demo mode active'
-        })
-      }
-      
       return NextResponse.json({ 
         ok: false, 
-        error: result.error 
+        error: result.error,
+        source: result.source
       }, { status: 500 })
     }
 
     return NextResponse.json({
       ok: true,
       data: result.data || [],
-      count: result.data?.length || 0
+      count: result.data?.length || 0,
+      source: result.source
     })
 
   } catch (error: any) {
@@ -46,6 +39,45 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ 
       ok: false, 
       error: 'Internal server error' 
+    }, { status: 500 })
+  }
+}
+
+// Batch search endpoint
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json()
+    const { queries = [] } = body
+
+    if (!Array.isArray(queries) || queries.length === 0) {
+      return NextResponse.json({
+        ok: false,
+        error: 'Queries array required'
+      }, { status: 400 })
+    }
+
+    const results = await Promise.all(
+      queries.map(async (query: string) => {
+        const result = await database.searchIngredients(query, 5)
+        return {
+          query,
+          success: result.success,
+          data: result.data || [],
+          source: result.source
+        }
+      })
+    )
+
+    return NextResponse.json({
+      ok: true,
+      results,
+      total_queries: queries.length
+    })
+  } catch (error: any) {
+    console.error('Batch ingredient search error:', error)
+    return NextResponse.json({
+      ok: false,
+      error: 'Batch search failed'
     }, { status: 500 })
   }
 }

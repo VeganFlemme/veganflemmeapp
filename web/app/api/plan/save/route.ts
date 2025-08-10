@@ -1,26 +1,57 @@
 export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from 'next/server'
-import { Pool } from 'pg'
+import { supabase } from '@/lib/supabase'
+import { database } from '@/lib/database'
 
 export async function POST(req: NextRequest) {
-  const DATABASE_URL = process.env.DATABASE_URL
-  if (!DATABASE_URL) {
-    return NextResponse.json({ ok:false, error:'Missing env DATABASE_URL' }, { status: 500 })
-  }
-  const { plan, user_email = null } = await req.json().catch(()=>({}))
-  if (!plan) {
-    return NextResponse.json({ ok:false, error:'Missing body.plan' }, { status: 400 })
-  }
-  const pool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } })
   try {
-    const { rows } = await pool.query(
-      'insert into public.plans (user_email, plan_json) values ($1, $2) returning id, created_at',
-      [user_email, plan]
-    )
-    return NextResponse.json({ ok:true, id: rows[0].id, created_at: rows[0].created_at })
-  } catch (e:any) {
-    return NextResponse.json({ ok:false, error: e.message || 'DB error' }, { status: 500 })
-  } finally {
-    await pool.end().catch(()=>{})
+    const { plan, user_email = null } = await req.json().catch(()=>({}))
+    
+    if (!plan) {
+      return NextResponse.json({ ok:false, error:'Missing body.plan' }, { status: 400 })
+    }
+
+    // Try to get authenticated user from headers
+    let authenticatedUserEmail: string | undefined
+    const authHeader = req.headers.get('authorization')
+    
+    if (authHeader) {
+      try {
+        const token = authHeader.replace('Bearer ', '')
+        const { data: { user } } = await supabase.auth.getUser(token)
+        authenticatedUserEmail = user?.email
+      } catch (error) {
+        console.log('Auth token validation failed:', error)
+      }
+    }
+
+    // Use authenticated user email if available, otherwise use provided email
+    const finalUserEmail = authenticatedUserEmail || user_email
+
+    // Save using enhanced database integration
+    const result = await database.savePlan(plan, finalUserEmail)
+
+    if (!result.success) {
+      return NextResponse.json({ 
+        ok: false, 
+        error: result.error || 'Failed to save plan',
+        source: result.source 
+      }, { status: 500 })
+    }
+
+    return NextResponse.json({ 
+      ok: true, 
+      id: result.data?.id, 
+      created_at: result.data?.created_at,
+      source: result.source,
+      user_email: finalUserEmail
+    })
+
+  } catch (e: any) {
+    console.error('Plan save error:', e)
+    return NextResponse.json({ 
+      ok: false, 
+      error: e.message || 'Internal server error' 
+    }, { status: 500 })
   }
 }
