@@ -1,3 +1,4 @@
+export const runtime = 'nodejs';
 import PDFDocument from 'pdfkit'
 import { NextRequest } from 'next/server'
 
@@ -9,7 +10,7 @@ export async function POST(req: NextRequest) {
   doc.on('end', () => {})
 
   doc.fontSize(18).text('VeganFlemme — Semaine')
-  ;(plan?.days || []).forEach((day:any, i:number) => {
+  ;(plan?.plan || []).forEach((day:any, i:number) => {
     doc.moveDown().fontSize(14).text(`Jour ${i+1}`)
     ;['breakfast','lunch','dinner','snack'].forEach((slot) => {
       const it = day?.[slot]
@@ -17,7 +18,6 @@ export async function POST(req: NextRequest) {
       doc.fontSize(12).text(`• ${slot}: ${it.title || it.recipeId} — ${it.servings || 1} portion(s)`)
     })
   })
-
   doc.end()
   return new Response(Buffer.concat(chunks), { headers: { 'Content-Type': 'application/pdf' }})
 }

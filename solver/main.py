@@ -6,7 +6,6 @@ import pulp, time
 
 app = FastAPI(title="VeganFlemme Optimizer")
 
-# In production, lock to your Vercel domain
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
