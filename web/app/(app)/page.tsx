@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { UserOnboarding, calculateTDEE, calculateMacroTargets } from '@/components/user-onboarding'
 import { NutritionDashboard } from '@/components/nutrition-dashboard'
 import { MealPlanView } from '@/components/meal-plan-view'
+import { ShoppingList } from '@/components/shopping-list'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 
@@ -165,6 +166,24 @@ export default function Page() {
     }
   }
 
+  const handleMealSubstitute = (dayIndex: number, mealType: string, newMeal: any) => {
+    const updatedPlan = [...plan]
+    if (updatedPlan[dayIndex]) {
+      updatedPlan[dayIndex] = {
+        ...updatedPlan[dayIndex],
+        [mealType]: {
+          recipeId: newMeal.id,
+          servings: 1.0,
+          title: newMeal.title
+        }
+      }
+      setPlan(updatedPlan)
+      
+      // Show success feedback
+      alert(`✅ ${mealType} du ${dayIndex + 1}er jour modifié avec succès!`)
+    }
+  }
+
   async function savePlan() {
     if (!plan.length) return
     
@@ -251,13 +270,17 @@ export default function Page() {
                 </Button>
                 
                 {plan.length > 0 && (
-                  <Button 
-                    onClick={savePlan}
-                    variant="outline" 
-                    className="w-full"
-                  >
-                    💾 Enregistrer
-                  </Button>
+                  <>
+                    <Button 
+                      onClick={savePlan}
+                      variant="outline" 
+                      className="w-full"
+                    >
+                      💾 Enregistrer
+                    </Button>
+                    
+                    <ShoppingList plan={plan} />
+                  </>
                 )}
                 
                 {isDemoMode && plan.length === 0 && (
@@ -326,7 +349,11 @@ export default function Page() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <MealPlanView plan={plan} isLoading={loading} />
+                <MealPlanView 
+                  plan={plan} 
+                  isLoading={loading} 
+                  onMealSubstitute={handleMealSubstitute}
+                />
               </CardContent>
             </Card>
           </div>
