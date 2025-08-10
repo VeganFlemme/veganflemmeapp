@@ -1,8 +1,10 @@
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from typing import List, Dict
-import pulp, time
+from typing import List, Dict, Optional
+from ortools.linear_solver import pywraplp
+import time
 
 app = FastAPI(title="VeganFlemme Optimizer")
 
@@ -13,6 +15,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+SLOTS = ["breakfast","lunch","dinner","snack"]
+N_KEYS = ["energy_kcal","protein_g","carbs_g","fat_g","fiber_g","b12_ug","iron_mg","calcium_mg","zinc_mg","iodine_ug","selenium_ug","vitamin_d_ug","ala_g"]
 
 class Nutrients(BaseModel):
     energy_kcal: float = 0
@@ -32,107 +37,133 @@ class Nutrients(BaseModel):
 class Recipe(BaseModel):
     id: str
     title: str
-    time_min: int
-    cost_eur: float
+    time_min: int = 20
+    cost_eur: float = 2.5
     nutrients: Nutrients
 
 class DayPlan(BaseModel):
-    breakfast: str | None
-    lunch: str | None
-    dinner: str | None
-    snack: str | None = None
+    breakfast: Optional[str] = None
+    lunch: Optional[str] = None
+    dinner: Optional[str] = None
+    snack: Optional[str] = None
 
 class SolveRequest(BaseModel):
     recipes: List[Recipe]
     day_templates: List[DayPlan]
     targets: Nutrients
-    weights: Dict[str, float]
+    weights: Dict[str, float] = {}
     dislikes: List[str] = []
     max_repeat: int = Field(2, ge=1, le=5)
     time_limit_sec: int = Field(25, ge=5, le=180)
 
-@app.get('/health')
+@app.get("/health")
 def health():
     return {"ok": True, "ts": time.time()}
 
-def _solve_once(req: SolveRequest, tol: float = 0.15):
-    R = {r.id: r for r in req.recipes if r.id not in set(req.dislikes)}
-    days = len(req.day_templates)
-    slots = ['breakfast','lunch','dinner','snack']
-
-    x = pulp.LpVariable.dicts('portion', (range(days), slots), lowBound=0, upBound=2, cat='Continuous')
-    y = pulp.LpVariable.dicts('pick', (range(days), slots, list(R.keys())), 0, 1, cat='Binary')
-
-    c = pulp.LpProblem('veganflemme', pulp.LpMinimize)
-
-    BIG = 2.0
-    for d in range(days):
-        for slot in slots:
-            c += pulp.lpSum([y[d][slot][rid] for rid in R]) <= 1
-            for rid in R:
-                c += x[d][slot] <= BIG * y[d][slot][rid]
-
-    def agg(day, key):
-        return pulp.lpSum([
-            y[day][slot][rid] * getattr(R[rid].nutrients, key) * x[day][slot]
-            for slot in slots for rid in R
-        ])
-
-    keys = ["energy_kcal","protein_g","carbs_g","fat_g","fiber_g","b12_ug","iron_mg","calcium_mg","zinc_mg","iodine_ug","selenium_ug","vitamin_d_ug","ala_g"]
-    dev_pos = { (d,k): pulp.LpVariable(f"dev_pos_{d}_{k}", lowBound=0) for d in range(days) for k in keys }
-    dev_neg = { (d,k): pulp.LpVariable(f"dev_neg_{d}_{k}", lowBound=0) for d in range(days) for k in keys }
-
-    for d in range(days):
-        for k in keys:
-            target = max(0.0, getattr(req.targets, k))
-            low = (1.0 - tol) * target
-            high = (1.0 + tol) * target
-            val = agg(d, k)
-            c += val - high <= dev_pos[(d,k)]
-            c += low - val <= dev_neg[(d,k)]
-
-    mean_cost = pulp.lpSum([ y[d][slot][rid] * R[rid].cost_eur for d in range(days) for slot in slots for rid in R ]) / max(1,days)
-    mean_time = pulp.lpSum([ y[d][slot][rid] * R[rid].time_min for d in range(days) for slot in slots for rid in R ]) / max(1,days)
-
-    for rid in R:
-        c += pulp.lpSum([ y[d][slot][rid] for d in range(days) for slot in slots ]) <= req.max_repeat
-
-    alpha = float(req.weights.get('nutri', 1.0))
-    beta  = float(req.weights.get('time', 0.2))
-    gamma = float(req.weights.get('cost', 0.2))
-
-    nutri_term = pulp.lpSum([ dev_pos[(d,k)] + dev_neg[(d,k)] for d in range(days) for k in keys ])
-    c += alpha*nutri_term + beta*mean_time + gamma*mean_cost
-
-    solver = pulp.PULP_CBC_CMD(msg=0, timeLimit=req.time_limit_sec)
-    c.solve(solver)
-
-    return c, x, y, keys, R, days, slots
-
-@app.post('/solve')
+@app.post("/solve")
 def solve(req: SolveRequest):
-    started = time.time()
-    if not req.recipes or not req.day_templates:
-        raise HTTPException(status_code=400, detail="recipes and day_templates required")
+    try:
+        if not req.recipes or not req.day_templates:
+            raise HTTPException(status_code=400, detail="recipes and day_templates required")
 
-    c, x, y, keys, R, days, slots = _solve_once(req, tol=0.15)
-    status = pulp.LpStatus[c.status]
+        # Filter recipes
+        R = [r for r in req.recipes if r.id not in set(req.dislikes)]
+        if not R:
+            return {"status": "EMPTY_POOL", "plan": [{"breakfast": None, "lunch": None, "dinner": None, "snack": None} for _ in range(len(req.day_templates))]}
 
-    if status not in ("Optimal",):
-        c, x, y, keys, R, days, slots = _solve_once(req, tol=0.25)
-        status = pulp.LpStatus[c.status]
+        days = len(req.day_templates)
+        n = len(R)
+        rid_index = {R[i].id: i for i in range(n)}
 
-    solution = []
-    for d in range(days):
-        day = {}
-        for slot in slots:
-            best = None
-            for rid in R:
-                var = y[d][slot][rid]
-                if var.value() and var.value() > 0.5:
-                    best = rid
-                    break
-            day[slot] = { 'recipeId': best, 'servings': float(x[d][slot].value() or 0) }
-        solution.append(day)
+        solver = pywraplp.Solver.CreateSolver("CBC")
+        if solver is None:
+            raise RuntimeError("OR-Tools CBC solver unavailable")
 
-    return { 'status': status, 'plan': solution, 'stats': { 'elapsed_sec': round(time.time()-started,3) } }
+        BIG = 2.0
+
+        # Decision variables
+        y = {}  # pick recipe
+        z = {}  # portions of recipe i on (d,slot)
+        for d in range(days):
+            for s in SLOTS:
+                for i in range(n):
+                    y[d, s, i] = solver.BoolVar(f"y_{d}_{s}_{i}")
+                    z[d, s, i] = solver.NumVar(0.0, BIG, f"z_{d}_{s}_{i}")
+
+        # Choose at most 1 recipe per slot
+        for d in range(days):
+            for s in SLOTS:
+                solver.Add(sum(y[d, s, i] for i in range(n)) <= 1)
+                for i in range(n):
+                    # Link z <= BIG * y
+                    solver.Add(z[d, s, i] <= BIG * y[d, s, i])
+
+        # Nutrient totals per day
+        # val[d,k] = sum_{s,i} z[d,s,i] * nutrient_k[i]   (linear, car z est continu et multiplie un CONSTANTE)
+        val = {(d,k): solver.NumVar(0.0, solver.infinity(), f"val_{d}_{k}") for d in range(days) for k in N_KEYS}
+        for d in range(days):
+            for k in N_KEYS:
+                solver.Add(val[d,k] == sum(z[d, s, i] * getattr(R[i].nutrients, k) for s in SLOTS for i in range(n)))
+
+        # Deviation variables around targets
+        dev_pos = {(d,k): solver.NumVar(0.0, solver.infinity(), f"devp_{d}_{k}") for d in range(days) for k in N_KEYS}
+        dev_neg = {(d,k): solver.NumVar(0.0, solver.infinity(), f"devn_{d}_{k}") for d in range(days) for k in N_KEYS}
+
+        T = req.targets
+        for d in range(days):
+            for k in N_KEYS:
+                target = max(0.0, getattr(T, k))
+                low = 0.85 * target
+                high = 1.15 * target
+                solver.Add(val[d,k] - high <= dev_pos[d,k])
+                solver.Add(low - val[d,k] <= dev_neg[d,k])
+
+        # Max repeat of a recipe across the week
+        for i in range(n):
+            solver.Add(sum(y[d, s, i] for d in range(days) for s in SLOTS) <= req.max_repeat)
+
+        # Mean time / cost (linear on y)
+        mean_time = (1.0 / max(1, days)) * solver.Sum([y[d, s, i] * R[i].time_min for d in range(days) for s in SLOTS for i in range(n)])
+        mean_cost = (1.0 / max(1, days)) * solver.Sum([y[d, s, i] * R[i].cost_eur for d in range(days) for s in SLOTS for i in range(n)])
+
+        alpha = float(req.weights.get("nutri", 1.0))
+        beta  = float(req.weights.get("time", 0.2))
+        gamma = float(req.weights.get("cost", 0.2))
+
+        nutri_term = solver.Sum([dev_pos[d,k] + dev_neg[d,k] for d in range(days) for k in N_KEYS])
+        objective = solver.Sum([alpha * nutri_term, beta * mean_time, gamma * mean_cost])
+        solver.Minimize(objective)
+
+        solver.SetTimeLimit(int(req.time_limit_sec * 1000))
+        status = solver.Solve()
+
+        status_map = {
+            pywraplp.Solver.OPTIMAL: "Optimal",
+            pywraplp.Solver.FEASIBLE: "Feasible",
+            pywraplp.Solver.INFEASIBLE: "Infeasible",
+            pywraplp.Solver.UNBOUNDED: "Unbounded",
+            pywraplp.Solver.ABNORMAL: "Abnormal",
+            pywraplp.Solver.NOT_SOLVED: "NotSolved",
+        }
+        label = status_map.get(status, str(status))
+
+        # Build solution
+        plan = []
+        for d in range(days):
+            day = {}
+            for s in SLOTS:
+                chosen = None
+                portions = 0.0
+                for i in range(n):
+                    if y[d, s, i].solution_value() > 0.5:
+                        chosen = R[i].id
+                        portions = z[d, s, i].solution_value()
+                        break
+                day[s] = {"recipeId": chosen, "servings": round(portions, 2)}
+            plan.append(day)
+
+        return {"status": label, "plan": plan}
+
+    except Exception as e:
+        # Return readable error to caller
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}")

@@ -1,3 +1,4 @@
+
 "use client";
 import { useState } from 'react'
 
@@ -8,14 +9,17 @@ export default function Page() {
   const [plan, setPlan] = useState<any>(null)
 
   async function generate() {
-    setLoading(true); setError(null)
+    setLoading(true); setError(null); setPlan(null)
     try {
       const targets = { energy_kcal: 2000, protein_g: 75, carbs_g: 260, fat_g: 70, fiber_g: 30,
         b12_ug: 4, iron_mg: 14, calcium_mg: 1000, zinc_mg: 10, iodine_ug: 150, selenium_ug: 70, vitamin_d_ug: 10, ala_g: 2
       }
       const res = await fetch('/api/plan/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ targets })})
       const data = await res.json()
-      if (!res.ok || !data.ok) throw new Error(data?.error || 'Erreur API')
+      if (!res.ok || !data.ok) {
+        const details = data?.details ? `\n\nDétails: ${String(data.details).slice(0,400)}` : ''
+        throw new Error((data?.error || 'Erreur API') + details)
+      }
       setPlan(data.plan)
     } catch (e:any) {
       setError(e.message || 'Erreur inconnue')
@@ -34,28 +38,28 @@ export default function Page() {
   const days: PlanDay[] = plan?.plan || []
 
   return (
-    <div className="grid grid-cols-12 gap-4">
+    <div className="grid grid-cols-12 gap-4 p-4">
       <aside className="col-span-3 space-y-6">
-        <div className="card">
+        <div className="rounded-2xl shadow bg-white p-4">
           <h2 className="text-lg font-semibold">Affiner</h2>
           <p className="text-sm text-gray-500">Temps, objectifs, allergies…</p>
           <button onClick={generate} disabled={loading}
             className="mt-3 inline-flex items-center rounded-xl bg-black text-white px-4 py-2 text-sm disabled:opacity-60">
             {loading ? 'Génération…' : 'Générer mon menu'}
           </button>
-          {plan && <button onClick={savePlan} className="ml-2 inline-flex items-center rounded-xl border px-4 py-2 text-sm">Enregistrer dans Supabase</button>}
-          {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
+          {plan && <button onClick={savePlan} className="ml-2 inline-flex items-center rounded-xl border px-4 py-2 text-sm">Enregistrer</button>}
+          {error && <pre className="text-xs text-red-600 mt-3 whitespace-pre-wrap">{error}</pre>}
         </div>
       </aside>
       <main className="col-span-6 space-y-4">
-        <div className="card">
+        <div className="rounded-2xl shadow bg-white p-4">
           <h1 className="text-2xl font-bold">Plan 100% végane — Semaine</h1>
           <p className="text-sm text-gray-500">Clique sur "Générer mon menu".</p>
         </div>
         {(days.length ? days : Array.from({length:7})).map((_,i)=> {
           const d: any = days[i] || {}
           return (
-          <div key={i} className="card">
+          <div key={i} className="rounded-2xl shadow bg-white p-3">
             <div className="font-medium">Jour {i+1}</div>
             <div className="grid grid-cols-4 gap-2 mt-2">
               {['breakfast','lunch','dinner','snack'].map((slot,idx)=> {
@@ -72,7 +76,7 @@ export default function Page() {
         )})}
       </main>
       <aside className="col-span-3 space-y-4">
-        <div className="card">
+        <div className="rounded-2xl shadow bg-white p-4">
           <h2 className="text-lg font-semibold">Tableau de bord</h2>
           <ul className="mt-2 text-sm text-gray-700">
             <li>Calories : —</li>
