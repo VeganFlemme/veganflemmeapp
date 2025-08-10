@@ -1,5 +1,7 @@
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { MealSubstitution } from "@/components/meal-substitution"
 
 interface MealSlot {
   recipeId?: string
@@ -18,6 +20,7 @@ interface MealPlanViewProps {
   plan: DayPlan[]
   isLoading?: boolean
   onRegenerateDay?: (dayIndex: number) => void
+  onMealSubstitute?: (dayIndex: number, mealType: string, newMeal: any) => void
 }
 
 const mealConfig = {
@@ -31,35 +34,81 @@ const daysOfWeek = [
   "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"
 ]
 
-function MealCard({ meal, mealType }: { meal?: MealSlot, mealType: keyof typeof mealConfig }) {
+function MealCard({ 
+  meal, 
+  mealType, 
+  dayIndex, 
+  onMealSubstitute 
+}: { 
+  meal?: MealSlot, 
+  mealType: keyof typeof mealConfig,
+  dayIndex?: number,
+  onMealSubstitute?: (dayIndex: number, mealType: string, newMeal: any) => void
+}) {
   const config = mealConfig[mealType]
+  const [showSubstitution, setShowSubstitution] = useState(false)
+  
+  const handleSubstitute = (newMeal: any) => {
+    if (onMealSubstitute && dayIndex !== undefined) {
+      onMealSubstitute(dayIndex, mealType, newMeal)
+    }
+    setShowSubstitution(false)
+  }
   
   return (
-    <div className={`rounded-lg border-2 border-dashed p-4 text-center transition-all hover:shadow-md ${config.color}`}>
-      <div className="text-2xl mb-2">{config.emoji}</div>
-      <div className="font-medium text-sm mb-1">{config.name}</div>
-      {meal?.recipeId ? (
-        <div className="space-y-1">
-          <div className="text-sm font-medium text-gray-900">
-            {meal.title || `Recette #${meal.recipeId}`}
-          </div>
-          {meal.servings && (
-            <div className="text-xs text-muted-foreground">
-              {meal.servings.toFixed(1)} portion{meal.servings !== 1 ? 's' : ''}
+    <div className="relative">
+      <div className={`rounded-lg border-2 border-dashed p-4 text-center transition-all hover:shadow-md ${config.color}`}>
+        <div className="text-2xl mb-2">{config.emoji}</div>
+        <div className="font-medium text-sm mb-1">{config.name}</div>
+        {meal?.recipeId ? (
+          <div className="space-y-2">
+            <div className="text-sm font-medium text-gray-900">
+              {meal.title || `Recette #${meal.recipeId}`}
             </div>
-          )}
+            {meal.servings && (
+              <div className="text-xs text-muted-foreground">
+                {meal.servings.toFixed(1)} portion{meal.servings !== 1 ? 's' : ''}
+              </div>
+            )}
+            {onMealSubstitute && dayIndex !== undefined && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => setShowSubstitution(!showSubstitution)}
+                className="text-xs h-6 px-2"
+              >
+                🔄 Modifier
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="text-xs text-muted-foreground">Non défini</div>
+        )}
+      </div>
+      
+      {showSubstitution && (
+        <div className="absolute top-full left-0 right-0 mt-2 z-10">
+          <MealSubstitution
+            mealId={meal?.recipeId}
+            mealTitle={meal?.title || config.name}
+            onSubstitute={handleSubstitute}
+          />
         </div>
-      ) : (
-        <div className="text-xs text-muted-foreground">Non défini</div>
       )}
     </div>
   )
 }
 
-function DayCard({ day, dayIndex, onRegenerateDay }: { 
+function DayCard({ 
+  day, 
+  dayIndex, 
+  onRegenerateDay,
+  onMealSubstitute 
+}: { 
   day: DayPlan, 
   dayIndex: number, 
-  onRegenerateDay?: (dayIndex: number) => void 
+  onRegenerateDay?: (dayIndex: number) => void,
+  onMealSubstitute?: (dayIndex: number, mealType: string, newMeal: any) => void
 }) {
   const dayName = daysOfWeek[dayIndex] || `Jour ${dayIndex + 1}`
   
@@ -87,6 +136,8 @@ function DayCard({ day, dayIndex, onRegenerateDay }: {
               key={mealType} 
               meal={day[mealType]} 
               mealType={mealType}
+              dayIndex={dayIndex}
+              onMealSubstitute={onMealSubstitute}
             />
           ))}
         </div>
@@ -95,7 +146,7 @@ function DayCard({ day, dayIndex, onRegenerateDay }: {
   )
 }
 
-export function MealPlanView({ plan, isLoading, onRegenerateDay }: MealPlanViewProps) {
+export function MealPlanView({ plan, isLoading, onRegenerateDay, onMealSubstitute }: MealPlanViewProps) {
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -145,6 +196,7 @@ export function MealPlanView({ plan, isLoading, onRegenerateDay }: MealPlanViewP
           day={day} 
           dayIndex={dayIndex}
           onRegenerateDay={onRegenerateDay}
+          onMealSubstitute={onMealSubstitute}
         />
       ))}
     </div>
