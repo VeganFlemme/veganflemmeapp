@@ -9,7 +9,9 @@ export interface EnvironmentConfig {
     supabase: {
       url?: string
       anonKey?: string
+      serviceRoleKey?: string
       configured: boolean
+      adminConfigured: boolean
     }
     database: {
       url?: string
@@ -39,7 +41,9 @@ export function getEnvironmentConfig(): EnvironmentConfig {
       supabase: {
         url: process.env.NEXT_PUBLIC_SUPABASE_URL,
         anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-        configured: !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+        serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+        configured: !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
+        adminConfigured: !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
       },
       database: {
         url: process.env.DATABASE_URL,
@@ -88,6 +92,11 @@ export function validateEnvironment(): {
     if (!config.services.supabase.configured) {
       issues.push('Supabase configuration missing (NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY)')
       recommendations.push('Configure Supabase environment variables for authentication')
+    }
+
+    if (!config.services.supabase.adminConfigured) {
+      issues.push('Supabase admin configuration missing (SUPABASE_SERVICE_ROLE_KEY)')
+      recommendations.push('Configure SUPABASE_SERVICE_ROLE_KEY for admin operations and RLS bypass')
     }
 
     if (!config.services.database.configured) {

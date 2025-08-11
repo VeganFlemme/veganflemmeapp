@@ -136,6 +136,7 @@ cp .env.example .env.local
 # Configurer les variables si vous voulez les vraies données:
 # NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
 # NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+# SUPABASE_SERVICE_ROLE_KEY=your-service-role-key  # ⚠️ Admin key - keep secure!
 # DATABASE_URL=your-postgres-url
 # SOLVER_URL=http://localhost:8080
 # SPOONACULAR_KEY=your-api-key
@@ -182,6 +183,7 @@ SOLVER_URL=https://veganflemmeapp-production.up.railway.app
 SPOONACULAR_KEY=26f861f1f54244c1b9b146adeab9fc17
 NEXT_PUBLIC_SUPABASE_URL=https://lpggllnmrjpevvslmiuq.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=[CONFIGURED_IN_DASHBOARD]
+SUPABASE_SERVICE_ROLE_KEY=[REQUIRED_FOR_ADMIN_OPERATIONS]
 
 # Railway (Backend Solver)
 PORT=8080

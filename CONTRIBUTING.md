@@ -18,6 +18,11 @@ cd veganflemmeapp
 cd web && npm install
 cd ../solver && python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
 
+# Configuration environnement (optionnel pour démo)
+cd web && cp .env.example .env.local
+# Edit .env.local with your API keys if you want full functionality
+# ⚠️ NEVER commit .env.local or real API keys to git
+
 # Test mode démo
 cd web && npm run dev
 # → http://localhost:3000
@@ -48,7 +53,19 @@ cd web && npm run dev
 3. Vérifier cohérence avec roadmap
 4. Commencer par mode démo si applicable
 
-#### 📊 Données & Nutrition
+#### 🔐 Environment Variables & Security
+**Sensitive Data Handling**:
+- Never commit real API keys or credentials
+- Use `.env.local` for local development (git ignored)
+- `SUPABASE_SERVICE_ROLE_KEY` - **HIGH PRIVILEGE**: Server-side only, never expose to client
+- Test in demo mode first, then configure services incrementally
+
+```bash
+# Safe environment setup
+cp .env.example .env.local
+# Edit .env.local with real values
+# SUPABASE_SERVICE_ROLE_KEY=eyJ... # ⚠️ Admin key - keep secure!
+```
 **Expertise bienvenue**:
 - Validation données CIQUAL/CALNUT
 - Recommandations nutritionnelles

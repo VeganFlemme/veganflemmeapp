@@ -1,5 +1,50 @@
 # Audit Complet - VeganFlemme Project
 
+## 🔐 Security Configuration Audit (January 2025 Update)
+
+### SUPABASE_SERVICE_ROLE_KEY Integration ✅
+
+**Status**: Recently integrated across all environments
+**Purpose**: Enables admin operations that bypass Row Level Security (RLS)
+
+#### Implementation Details:
+```typescript
+// web/lib/supabase.ts - Admin client configuration
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+if (supabaseUrl && supabaseServiceKey) {
+  supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  })
+}
+```
+
+#### Environment Validation:
+```typescript
+// web/lib/environment.ts - Service role key validation
+adminConfigured: !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
+```
+
+#### Security Considerations:
+- ⚠️ **High-privilege credential**: Bypasses all RLS policies
+- ✅ **Server-side only**: Never exposed to client-side code
+- ✅ **Environment validation**: Properly checked in production mode
+- ✅ **Admin operations**: Used for health checks and system operations
+- ✅ **Secure storage**: Configured in deployment environment variables
+
+#### Usage Patterns:
+1. **Health checks**: Database connectivity validation in `/api/health`
+2. **Admin operations**: Plan saving with RLS bypass for system operations
+3. **System monitoring**: Service availability checks
+
+#### Documentation Updates:
+- [x] Added to `.env.example` with security warnings
+- [x] Updated README.md with configuration instructions
+- [x] Enhanced PRODUCTION_DEPLOYMENT.md with deployment steps
+- [x] Environment validation includes service role key check
+
 ## 📋 Résumé de l'Audit
 
 **Date**: Janvier 2025  

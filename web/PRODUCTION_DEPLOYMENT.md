@@ -17,7 +17,16 @@ SPOONACULAR_KEY=26f861f1f54244c1b9b146adeab9fc17
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=https://lpggllnmrjpevvslmiuq.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=[NEED_TO_GET_FROM_SUPABASE_DASHBOARD]
+SUPABASE_SERVICE_ROLE_KEY=[CRITICAL_ADMIN_KEY_FROM_DASHBOARD]
 ```
+
+### ⚠️ Security Notice: SUPABASE_SERVICE_ROLE_KEY
+**The service role key is a critical security credential that:**
+- Bypasses Row Level Security (RLS) policies
+- Has full database access permissions
+- Should NEVER be exposed in client-side code
+- Must be kept secure in server-side environment variables only
+- Is used for admin operations like health checks and system operations
 
 ### Optional Variables
 ```bash
@@ -44,6 +53,21 @@ https://app.supabase.com/project/lpggllnmrjpevvslmiuq
 3. **Copy the following**:
    - Project URL: `https://lpggllnmrjpevvslmiuq.supabase.co`
    - Anon public key: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`
+   - **Service role key**: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` ⚠️ **KEEP SECURE**
+
+### Step 2b: Configure Environment Variables
+**Vercel Dashboard > Project Settings > Environment Variables:**
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://lpggllnmrjpevvslmiuq.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...[anon_key]
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...[service_role_key]
+```
+
+**Railway Dashboard > Variables:**
+```bash
+# Service role key may also be needed for backend operations
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...[service_role_key]
+```
 
 ### Step 3: Database Schema Verification
 Run these queries in Supabase SQL Editor to verify setup:
@@ -102,6 +126,10 @@ Expected output when fully configured:
     "valid": true,
     "issues": [],
     "recommendations": []
+  },
+  "supabase": {
+    "configured": true,
+    "adminConfigured": true
   }
 }
 ```
@@ -180,6 +208,7 @@ curl "https://api.spoonacular.com/food/ingredients/autocomplete?query=appl&numbe
 
 ### Pre-Deployment
 - [ ] Verify all environment variables are set
+- [ ] **Verify SUPABASE_SERVICE_ROLE_KEY is configured securely**
 - [ ] Test database connectivity
 - [ ] Deploy and test solver service
 - [ ] Validate Spoonacular API key
@@ -187,6 +216,7 @@ curl "https://api.spoonacular.com/food/ingredients/autocomplete?query=appl&numbe
 
 ### Post-Deployment
 - [ ] Health check returns 200 OK
+- [ ] **Verify admin Supabase client works (check /api/health/advanced)**
 - [ ] Plan generation works end-to-end
 - [ ] Authentication flow (if enabled)
 - [ ] Database operations (save/load plans)
