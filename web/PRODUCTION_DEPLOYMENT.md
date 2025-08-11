@@ -6,18 +6,14 @@ This guide assumes you have completed Phase 3A and have the environment variable
 
 ## 🔧 Environment Variables Configuration
 
-### Critical Production Variables (Already Configured)
+### Critical Production Variables (Configured and Ready ✅)
 ```bash
-DATABASE_URL=postgresql://postgres.lpggllnmrjpevvslmiuq:qyrgip-codsoq-1nuxJo@aws-0-eu-central-1.pooler.supabase.com:6543/postgres
-SOLVER_URL=https://veganflemmeapp-production.up.railway.app
-SPOONACULAR_KEY=26f861f1f54244c1b9b146adeab9fc17
-```
-
-### Missing Variables (Need to be obtained)
-```bash
+DATABASE_URL=postgresql://<USERNAME>:<PASSWORD>@<HOST>:<PORT>/<DB_NAME>
 NEXT_PUBLIC_SUPABASE_URL=https://lpggllnmrjpevvslmiuq.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=[NEED_TO_GET_FROM_SUPABASE_DASHBOARD]
-SUPABASE_SERVICE_ROLE_KEY=[CRITICAL_ADMIN_KEY_FROM_DASHBOARD]
+NEXT_PUBLIC_SUPABASE_ANON_KEY=[YOUR_SUPABASE_ANON_KEY]
+SUPABASE_SERVICE_ROLE_KEY=[YOUR_SUPABASE_SERVICE_ROLE_KEY]
+SOLVER_URL=https://veganflemmeapp-production.up.railway.app
+SPOONACULAR_KEY=[YOUR_SPOONACULAR_KEY]
 ```
 
 ### ⚠️ Security Notice: SUPABASE_SERVICE_ROLE_KEY
@@ -38,38 +34,19 @@ NODE_ENV=production
 
 ## 🗄️ Database Setup Instructions
 
-### Step 1: Verify Supabase Project
+### Step 2: Execute Database Setup (Ready to Run)
+**All credentials are configured. Run the automated setup:**
 ```bash
-# Extract project ID from DATABASE_URL
-PROJECT_ID=lpggllnmrjpevvslmiuq
-
-# Supabase Dashboard URL
-https://app.supabase.com/project/lpggllnmrjpevvslmiuq
+cd /path/to/veganflemmeapp
+./scripts/setup-database.sh
 ```
 
-### Step 2: Get Missing Credentials
-1. **Login to Supabase Dashboard**: https://app.supabase.com/
-2. **Navigate to Project Settings**: Project Settings > API
-3. **Copy the following**:
-   - Project URL: `https://lpggllnmrjpevvslmiuq.supabase.co`
-   - Anon public key: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`
-   - **Service role key**: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` ⚠️ **KEEP SECURE**
-
-### Step 2b: Configure Environment Variables
-**Vercel Dashboard > Project Settings > Environment Variables:**
-```bash
-NEXT_PUBLIC_SUPABASE_URL=https://lpggllnmrjpevvslmiuq.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...[anon_key]
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...[service_role_key]
-```
-
-**Railway Dashboard > Variables:**
-```bash
-# Service role key may also be needed for backend operations
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...[service_role_key]
-```
-
-### Step 3: Database Schema Verification
+**This script will:**
+1. Test database connection
+2. Apply complete schema (ciqual, vf, off_link schemas)
+3. Set up RLS policies
+4. Download and import CIQUAL 2020 data
+5. Create search functions and indexes
 Run these queries in Supabase SQL Editor to verify setup:
 
 ```sql
@@ -88,25 +65,33 @@ SELECT count(*) as saved_plans FROM public.plans;
 
 ## 🚀 Solver Service Setup
 
-### Current Status
+### Current Status: Ready for Immediate Deployment
 - **URL**: https://veganflemmeapp-production.up.railway.app
-- **Status**: Configured but not reachable (likely needs deployment)
+- **Status**: Configured, needs deployment execution
 
 ### Deployment Steps
-1. **Deploy to Railway**:
+1. **Deploy to Railway using automated configuration**:
    ```bash
    cd solver/
-   # Deploy using Railway CLI or GitHub integration
+   
+   # Option A: Using Railway CLI
    railway login
+   railway link veganflemmeapp-production
    railway deploy
+   
+   # Option B: Using Docker (if Railway CLI unavailable)
+   docker build -t veganflemme-solver .
+   # Push to Railway registry or deploy manually
    ```
 
-2. **Verify Endpoints**:
+2. **Verify Deployment**:
    ```bash
    curl https://veganflemmeapp-production.up.railway.app/health
+   # Expected: {"ok": true, "ts": timestamp}
+   
    curl -X POST https://veganflemmeapp-production.up.railway.app/solve \
      -H "Content-Type: application/json" \
-     -d '{"recipes":[],"day_templates":[],"targets":{}}'
+     -d '{"recipes":[],"day_templates":[],"targets":{"energy_kcal": 2100}}'
    ```
 
 ## 🧪 Testing Production Setup

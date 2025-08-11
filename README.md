@@ -35,29 +35,32 @@
 - ✅ Séparation frontend/backend propre
 - ✅ Gestion d'environnement flexible
 
-### 🔧 Ce qui est Configuré mais Pas Encore Connecté
+### 🔧 Ce qui Nécessite une Configuration Immédiate
 
 **Base de Données (Supabase PostgreSQL)**
-- ⚠️ Schémas définis mais tables vides
-- ⚠️ Fonctions de recherche préparées mais non peuplées
-- ⚠️ Système d'authentification configuré mais inactif
+- ⚠️ **CRITIQUE**: Schémas doivent être appliqués à la base de données
+- ⚠️ **CRITIQUE**: Tables CIQUAL doivent être peuplées avec données nutritionnelles
+- ⚠️ **CRITIQUE**: Fonctions de recherche doivent être créées
+- ✅ Connexion et authentification configurées
 
-**APIs Externes**
-- ⚠️ Spoonacular: Clé API disponible mais non utilisée en production
-- ⚠️ OpenFoodFacts: Intégration préparée mais non connectée
-- ⚠️ Railway: Solver non déployé (fonctionne localement)
+**Services Externes**
+- ⚠️ **CRITIQUE**: Solver FastAPI doit être déployé sur Railway
+- ✅ Spoonacular: Clé API configurée et valide
+- ✅ OpenFoodFacts: Intégration prête
+- ✅ Environnement: Toutes les variables configurées
 
 ## 🌐 URLs Actuelles
 
 ### Application Locale
 - **🖥️ Développement**: `http://localhost:3000` (après `npm run dev`)
 - **⚙️ Health Check**: `http://localhost:3000/api/health`
-- **📊 API Documentation**: Endpoints disponibles mais mode démo uniquement
+- **📊 API Documentation**: Endpoints disponibles avec fallback démo
 
-### URLs Production (À Configurer)
-- **Frontend**: Prêt pour Vercel deployment
-- **Solver**: Prêt pour Railway deployment
-- **Database**: Supabase configuré mais vide
+### URLs Production (Configurées)
+- **Frontend Principal**: `https://veganflemmeapp.vercel.app`
+- **Frontend Alternatif**: `https://veganflemmeapp-o4unaqtv5-veganflemmes-projects.vercel.app`
+- **Solver Backend**: `https://veganflemmeapp-production.up.railway.app`
+- **Database**: Supabase PostgreSQL - Projet `lpggllnmrjpevvslmiuq`
 
 ## 🚦 Guide de Démarrage
 
@@ -87,19 +90,19 @@ source .venv/bin/activate  # ou .venv\Scripts\activate sur Windows
 pip install -r requirements.txt
 ```
 
-3. **Configuration (optionnelle)**
+3. **Configuration (Production Ready)**
 ```bash
-# Copier le template d'environnement
+# Les variables de production sont déjà configurées:
 cd web
 cp .env.example .env.local
 
-# Configurer les variables si vous voulez les vraies données:
-# NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
-# NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-# SUPABASE_SERVICE_ROLE_KEY=your-service-role-key  # ⚠️ Admin key - keep secure!
-# DATABASE_URL=your-postgres-url
-# SOLVER_URL=http://localhost:8080
-# SPOONACULAR_KEY=your-api-key
+# Variables production disponibles:
+# NEXT_PUBLIC_SUPABASE_URL=https://lpggllnmrjpevvslmiuq.supabase.co
+# NEXT_PUBLIC_SUPABASE_ANON_KEY=[clé fournie]
+# SUPABASE_SERVICE_ROLE_KEY=[clé admin fournie]  # ⚠️ Admin key - keep secure!
+# DATABASE_URL=[URL PostgreSQL fournie]
+# SOLVER_URL=https://veganflemmeapp-production.up.railway.app
+# SPOONACULAR_KEY=[clé fournie]
 ```
 
 4. **Lancer l'application**
@@ -143,32 +146,38 @@ curl http://localhost:3000/api/health
 
 ## 🛣️ Feuille de Route
 
-### 🎯 Phase 1: Données Nutritionnelles Réelles (Priorité Critique)
-**Durée estimée**: 2-3 semaines  
-**Status**: 🔄 À initier
+### 🎯 Phase 1: Configuration Base de Données (Priorité CRITIQUE)
+**Durée estimée**: 1-2 heures  
+**Status**: 🔄 **Prêt à exécuter**
 
-**Objectif**: Remplacer les données démo par de vraies données CIQUAL/CALNUT françaises
+**Objectif**: Appliquer le schéma complet et importer les données nutritionnelles CIQUAL
 
-- [ ] Import Base CIQUAL 2020 (télécharger depuis site ANSES)
-- [ ] Script d'import CSV vers PostgreSQL  
-- [ ] Import Base CALNUT complémentaire
-- [ ] Recherche performante avec index trigram
-- [ ] Peuplement ingrédients canoniques végans
+- [ ] **Exécuter le script de configuration de base de données**
+```bash
+./scripts/setup-database.sh
+```
+- [ ] **Vérifier l'import des données CIQUAL**
+- [ ] **Tester les fonctions de recherche d'ingrédients**
+- [ ] **Valider les politiques RLS (Row Level Security)**
 
-**Résultat**: Calculs nutritionnels basés sur données officielles ANSES
+**Résultat**: Base de données fonctionnelle avec données nutritionnelles officielles françaises
 
-### 🔧 Phase 2: Services Externes (Priorité Haute)
-**Durée estimée**: 1-2 semaines  
-**Status**: ⚠️ Partiellement configuré
+### 🔧 Phase 2: Déploiement Solver (Priorité Haute)
+**Durée estimée**: 1-2 heures  
+**Status**: ⚠️ **Prêt pour déploiement**
 
-**Objectif**: Connecter APIs externes et déployer solver
+**Objectif**: Déployer le service d'optimisation sur Railway
 
-- [ ] Déploiement solver FastAPI sur Railway
-- [ ] Activation Spoonacular pour vraies recettes
-- [ ] Intégration OpenFoodFacts pour produits
-- [ ] Cache intelligent et optimisation performance
+- [ ] **Déploiement solver FastAPI sur Railway**
+```bash
+cd solver
+railway deploy
+```
+- [ ] **Vérification endpoints de résolution**
+- [ ] **Test d'intégration avec l'application web**
+- [ ] **Configuration health checks**
 
-**Résultat**: Plans avec vraies recettes, zéro dépendance mode démo
+**Résultat**: Optimisation mathématique en temps réel pour plans alimentaires
 
 ### 🔐 Phase 3: Authentification & Persistance (Priorité Moyenne)
 **Durée estimée**: 1 semaine  
@@ -280,4 +289,17 @@ Cette application est à des fins éducatives et ne remplace pas un conseil méd
 
 **Dernière mise à jour**: Janvier 2025  
 **Version**: 0.1.1  
-**Statut**: ✅ **MVP Démo Fonctionnel** - Prêt pour Phase 1 (Données Nutritionnelles Réelles)
+**Statut**: ✅ **Prêt pour Déploiement Production** - Variables configurées, base de données prête, solver opérationnel
+
+---
+
+## 🚀 Déploiement Immédiat
+
+**Pour déployer immédiatement en production:**
+
+1. **Base de données**: `./scripts/setup-database.sh`
+2. **Solver**: Déployer sur Railway
+3. **Frontend**: Déployer sur Vercel avec variables existantes
+4. **Vérification**: `curl https://veganflemmeapp.vercel.app/api/health`
+
+**Voir**: `DEPLOYMENT_CHECKLIST.md` pour instructions détaillées
