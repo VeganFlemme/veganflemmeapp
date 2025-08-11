@@ -1,0 +1,220 @@
+# Production Deployment Guide - VeganFlemme Phase 3B
+
+## 🎯 Prerequisites
+
+This guide assumes you have completed Phase 3A and have the environment variables configured. The application now supports graceful fallback when services are unavailable.
+
+## 🔧 Environment Variables Configuration
+
+### Critical Production Variables (Already Configured)
+```bash
+DATABASE_URL=postgresql://postgres.lpggllnmrjpevvslmiuq:qyrgip-codsoq-1nuxJo@aws-0-eu-central-1.pooler.supabase.com:6543/postgres
+SOLVER_URL=https://veganflemmeapp-production.up.railway.app
+SPOONACULAR_KEY=26f861f1f54244c1b9b146adeab9fc17
+```
+
+### Missing Variables (Need to be obtained)
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://lpggllnmrjpevvslmiuq.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=[NEED_TO_GET_FROM_SUPABASE_DASHBOARD]
+```
+
+### Optional Variables
+```bash
+OFF_BASE=https://world.openfoodfacts.org
+OPENAI_API_KEY=[YOUR_OPENAI_KEY]
+OPENAI_MODEL=gpt-4
+NODE_ENV=production
+```
+
+## 🗄️ Database Setup Instructions
+
+### Step 1: Verify Supabase Project
+```bash
+# Extract project ID from DATABASE_URL
+PROJECT_ID=lpggllnmrjpevvslmiuq
+
+# Supabase Dashboard URL
+https://app.supabase.com/project/lpggllnmrjpevvslmiuq
+```
+
+### Step 2: Get Missing Credentials
+1. **Login to Supabase Dashboard**: https://app.supabase.com/
+2. **Navigate to Project Settings**: Project Settings > API
+3. **Copy the following**:
+   - Project URL: `https://lpggllnmrjpevvslmiuq.supabase.co`
+   - Anon public key: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`
+
+### Step 3: Database Schema Verification
+Run these queries in Supabase SQL Editor to verify setup:
+
+```sql
+-- Check if CIQUAL data is imported
+SELECT count(*) as ciqual_records FROM ciqual.food_norm;
+
+-- Check if VF schema exists
+SELECT count(*) as vf_ingredients FROM vf.canonical_ingredient;
+
+-- Test search function
+SELECT * FROM vf.search_ingredient('tofu') LIMIT 5;
+
+-- Check plans table
+SELECT count(*) as saved_plans FROM public.plans;
+```
+
+## 🚀 Solver Service Setup
+
+### Current Status
+- **URL**: https://veganflemmeapp-production.up.railway.app
+- **Status**: Configured but not reachable (likely needs deployment)
+
+### Deployment Steps
+1. **Deploy to Railway**:
+   ```bash
+   cd solver/
+   # Deploy using Railway CLI or GitHub integration
+   railway login
+   railway deploy
+   ```
+
+2. **Verify Endpoints**:
+   ```bash
+   curl https://veganflemmeapp-production.up.railway.app/health
+   curl -X POST https://veganflemmeapp-production.up.railway.app/solve \
+     -H "Content-Type: application/json" \
+     -d '{"recipes":[],"day_templates":[],"targets":{}}'
+   ```
+
+## 🧪 Testing Production Setup
+
+### Health Check Test
+```bash
+curl https://your-vercel-app.vercel.app/api/health | jq '.environment'
+```
+
+Expected output when fully configured:
+```json
+{
+  "mode": "production",
+  "production": true,
+  "configured_services": ["supabase", "database", "solver", "spoonacular"],
+  "validation": {
+    "valid": true,
+    "issues": [],
+    "recommendations": []
+  }
+}
+```
+
+### Plan Generation Test
+```bash
+curl -X POST https://your-vercel-app.vercel.app/api/plan/generate \
+  -H "Content-Type: application/json" \
+  -d '{"maxTime": 30, "targets": {"energy_kcal": 2100}}'
+```
+
+## 🎨 Application Features Status
+
+### ✅ Fully Functional (Demo Mode)
+- **TDEE Calculation**: Works with any configuration
+- **Nutrition Dashboard**: Real-time progress tracking
+- **Mock Meal Planning**: Intelligent optimization using built-in recipes
+- **Smart Shopping Lists**: Generated from meal plans
+- **PDF Export**: Working shopping list export
+- **Responsive UI**: Mobile and desktop optimized
+
+### 🔧 Enhanced with Real Services
+- **Real Recipe Data**: When Spoonacular API is reachable
+- **Mathematical Optimization**: When Railway solver is deployed
+- **User Authentication**: When Supabase auth is configured
+- **Persistent Storage**: When database connection is established
+
+### 🚦 Graceful Fallbacks
+- **No External API**: Uses mock data and built-in solver
+- **Partial Connectivity**: Mixes real and mock data as available
+- **Network Issues**: Timeout protection with fallback
+- **Service Outages**: Continues operation in demo mode
+
+## 📊 Monitoring and Troubleshooting
+
+### Health Monitoring
+The `/api/health` endpoint provides comprehensive status:
+- **Environment validation**
+- **Service connectivity**
+- **Database health**
+- **Performance metrics**
+
+### Common Issues and Solutions
+
+#### Database Connection Issues
+```bash
+# Test direct connection
+pg_isready -h aws-0-eu-central-1.pooler.supabase.com -p 6543
+
+# Check if credentials are correct
+psql "postgresql://postgres.lpggllnmrjpevvslmiuq:qyrgip-codsoq-1nuxJo@aws-0-eu-central-1.pooler.supabase.com:6543/postgres" -c "SELECT 1;"
+```
+
+#### Solver Service Issues
+```bash
+# Check Railway deployment
+railway status
+
+# Check logs
+railway logs
+
+# Redeploy if needed
+railway deploy
+```
+
+#### Spoonacular API Issues
+```bash
+# Test API key
+curl "https://api.spoonacular.com/recipes/random?apiKey=26f861f1f54244c1b9b146adeab9fc17&number=1"
+
+# Check quota
+curl "https://api.spoonacular.com/food/ingredients/autocomplete?query=appl&number=5&apiKey=26f861f1f54244c1b9b146adeab9fc17"
+```
+
+## 🎯 Production Checklist
+
+### Pre-Deployment
+- [ ] Verify all environment variables are set
+- [ ] Test database connectivity
+- [ ] Deploy and test solver service
+- [ ] Validate Spoonacular API key
+- [ ] Run build process successfully
+
+### Post-Deployment
+- [ ] Health check returns 200 OK
+- [ ] Plan generation works end-to-end
+- [ ] Authentication flow (if enabled)
+- [ ] Database operations (save/load plans)
+- [ ] PDF export functionality
+- [ ] Mobile responsiveness
+
+### Performance Optimization
+- [ ] Enable Next.js caching
+- [ ] Configure Supabase connection pooling
+- [ ] Set up CDN for static assets
+- [ ] Monitor API response times
+- [ ] Implement error tracking (Sentry)
+
+## 🔄 Deployment Workflow
+
+1. **Environment Setup**: Configure all variables in Vercel/deployment platform
+2. **Database Migration**: Run schema setup in Supabase
+3. **Service Deployment**: Deploy solver to Railway
+4. **Application Deployment**: Deploy Next.js app to Vercel
+5. **Health Verification**: Run comprehensive health checks
+6. **User Testing**: Test complete user journey
+7. **Monitoring Setup**: Configure alerts and monitoring
+
+## 📝 Next Steps (Phase 3C)
+
+After successful Phase 3B deployment:
+- **Advanced Authentication**: User profiles and preferences
+- **Enhanced Nutrition**: Real CIQUAL data integration
+- **Smart Substitutions**: AI-powered meal recommendations
+- **Social Features**: Plan sharing and community
+- **Mobile App**: React Native or PWA implementation
