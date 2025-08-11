@@ -7,7 +7,7 @@
 - NEXT_PUBLIC_SUPABASE_URL: `https://lpggllnmrjpevvslmiuq.supabase.co`
 - NEXT_PUBLIC_SUPABASE_ANON_KEY: `<YOUR_SUPABASE_ANON_KEY_HERE>`
 - SUPABASE_SERVICE_ROLE_KEY: `<SUPABASE_SERVICE_ROLE_KEY>`
-- SPOONACULAR_KEY: `26f861f1f54244c1b9b146adeab9fc17`
+- SPOONACULAR_KEY: `<YOUR_SPOONACULAR_KEY_HERE>`
 
 **Target Deployment URLs**
 - Frontend: `veganflemmeapp.vercel.app` (primary)
