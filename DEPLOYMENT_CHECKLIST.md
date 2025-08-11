@@ -3,7 +3,7 @@
 ## 🎯 Current Status
 
 **Environment Variables Available ✅**
-- DATABASE_URL: `postgresql://postgres.lpggllnmrjpevvslmiuq:qyrgip-codsoq-1nuxJo@aws-0-eu-central-1.pooler.supabase.com:6543/postgres`
+- DATABASE_URL: `postgresql://<DB_USER>:<DB_PASSWORD>@<DB_HOST>:<DB_PORT>/<DB_NAME>`
 - NEXT_PUBLIC_SUPABASE_URL: `https://lpggllnmrjpevvslmiuq.supabase.co`
 - NEXT_PUBLIC_SUPABASE_ANON_KEY: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxwZ2dsbG5tcmpwZXZ2c2xtaXVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NDI1OTgsImV4cCI6MjA3MDQxODU5OH0.SQ4OJr1REUtXR-Kphqqxur1EmT5w85_MEjZJi_59goQ`
 - SUPABASE_SERVICE_ROLE_KEY: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxwZ2dsbG5tcmpwZXZ2c2xtaXVxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NDg0MjU5OCwiZXhwIjoyMDcwNDE4NTk4fQ.vOXohAyQYKJ2zL_3EdRDJxBRQXiAsPofz6KmW6-J_9o`
