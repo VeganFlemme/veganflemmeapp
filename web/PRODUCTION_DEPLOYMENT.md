@@ -11,7 +11,7 @@ This guide assumes you have completed Phase 3A and have the environment variable
 DATABASE_URL=postgresql://<USERNAME>:<PASSWORD>@<HOST>:<PORT>/<DB_NAME>
 NEXT_PUBLIC_SUPABASE_URL=https://lpggllnmrjpevvslmiuq.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=[YOUR_SUPABASE_ANON_KEY]
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxwZ2dsbG5tcmpwZXZ2c2xtaXVxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NDg0MjU5OCwiZXhwIjoyMDcwNDE4NTk4fQ.vOXohAyQYKJ2zL_3EdRDJxBRQXiAsPofz6KmW6-J_9o
+SUPABASE_SERVICE_ROLE_KEY=[YOUR_SUPABASE_SERVICE_ROLE_KEY]
 SOLVER_URL=https://veganflemmeapp-production.up.railway.app
 SPOONACULAR_KEY=26f861f1f54244c1b9b146adeab9fc17
 ```
