@@ -1,4 +1,5 @@
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server'
 import { database } from '@/lib/database'
 import { getEnvironmentConfig, validateEnvironment, getServiceEndpoints } from '@/lib/environment'
