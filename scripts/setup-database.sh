@@ -4,7 +4,7 @@
 
 set -e
 
-DB_URL="${DATABASE_URL:-postgresql://postgres.lpggllnmrjpevvslmiuq:qyrgip-codsoq-1nuxJo@aws-0-eu-central-1.pooler.supabase.com:6543/postgres}"
+DB_URL="${DATABASE_URL:-postgresql://username:password@host:port/database}"
 
 echo "🚀 VeganFlemme Database Setup"
 echo "Database URL: ${DB_URL}"
