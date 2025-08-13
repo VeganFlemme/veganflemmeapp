@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server'
 import { database } from '@/lib/database'
 import { getEnvironmentConfig, validateEnvironment, getServiceEndpoints } from '@/lib/environment'
+import { fetchWithTimeout, SECURITY_HEADERS } from '@/lib/api-utils'
 
 export async function GET() {
   const startTime = Date.now()
@@ -19,26 +20,26 @@ export async function GET() {
   const serviceTests = await Promise.allSettled([
     // Solver service test
     config.services.solver.configured 
-      ? fetch(`${config.services.solver.url}/health`, {
+      ? fetchWithTimeout(`${config.services.solver.url}/health`, {
           cache: 'no-store',
-          signal: AbortSignal.timeout(5000)
+          timeout: 5000
         }).then(res => ({ service: 'solver', ok: res.ok, status: res.status }))
         .catch(err => ({ service: 'solver', ok: false, error: err.message }))
       : Promise.resolve({ service: 'solver', ok: false, error: 'Not configured' }),
     
     // Spoonacular API test
     config.services.spoonacular.configured 
-      ? fetch(`https://api.spoonacular.com/recipes/random?apiKey=${config.services.spoonacular.key}&number=1`, {
+      ? fetchWithTimeout(`https://api.spoonacular.com/recipes/random?apiKey=${config.services.spoonacular.key}&number=1`, {
           cache: 'no-store',
-          signal: AbortSignal.timeout(5000)
+          timeout: 5000
         }).then(res => ({ service: 'spoonacular', ok: res.ok, status: res.status }))
         .catch(err => ({ service: 'spoonacular', ok: false, error: err.message }))
       : Promise.resolve({ service: 'spoonacular', ok: false, error: 'Not configured' }),
     
     // OpenFoodFacts test
-    fetch('https://world.openfoodfacts.org/api/v0/product/test.json', {
+    fetchWithTimeout('https://world.openfoodfacts.org/api/v0/product/test.json', {
       cache: 'no-store',
-      signal: AbortSignal.timeout(5000)
+      timeout: 5000
     }).then(res => ({ service: 'openfoodfacts', ok: res.ok, status: res.status }))
      .catch(err => ({ service: 'openfoodfacts', ok: false, error: err.message }))
   ])
@@ -97,9 +98,10 @@ export async function GET() {
     meta: {
       timestamp: new Date().toISOString(),
       version: '0.1.1',
-      phase: 'Phase 3B - Production Integration'
+      phase: 'Phase 4 - API Hardening'
     }
   }, {
-    status: isHealthy ? 200 : 503
+    status: isHealthy ? 200 : 503,
+    headers: SECURITY_HEADERS
   })
 }

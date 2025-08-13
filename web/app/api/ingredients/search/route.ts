@@ -1,83 +1,101 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
+import { z } from 'zod'
 import { database } from '@/lib/database'
+import { validateQueryParams, validateRequestBody, createErrorResponse, createSuccessResponse } from '@/lib/api-utils'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+// Zod schemas for validation
+const searchQuerySchema = z.object({
+  q: z.string().min(2, 'Query must be at least 2 characters').max(100, 'Query too long'),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
+})
+
+const batchSearchSchema = z.object({
+  queries: z.array(z.string().min(1).max(100)).min(1).max(10),
+  limit: z.number().int().min(1).max(20).default(5),
+})
+
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url)
-  const query = searchParams.get('q') || ''
-  const limit = parseInt(searchParams.get('limit') || '10')
-
-  if (!query || query.length < 2) {
-    return NextResponse.json({ 
-      ok: false, 
-      error: 'Query parameter "q" must be at least 2 characters' 
-    }, { status: 400 })
-  }
-
   try {
+    const { searchParams } = new URL(req.url)
+    
+    // Validate query parameters with zod
+    const validation = validateQueryParams(searchParams, searchQuerySchema)
+    if (!validation.success) {
+      return createErrorResponse(validation.error, 400, 'VALIDATION_ERROR')
+    }
+
+    const { q: query, limit } = validation.data
+
     const result = await database.searchIngredients(query, limit)
     
     if (!result.success) {
-      return NextResponse.json({ 
-        ok: false, 
-        error: result.error,
-        source: result.source
-      }, { status: 500 })
+      return createErrorResponse(
+        String(result.error) || 'Search failed',
+        500,
+        'SEARCH_ERROR'
+      )
     }
 
-    return NextResponse.json({
-      ok: true,
-      data: result.data || [],
-      count: result.data?.length || 0,
-      source: result.source
-    })
+    return createSuccessResponse(
+      {
+        ingredients: result.data || [],
+        count: result.data?.length || 0,
+        query,
+        source: result.source
+      }
+    )
 
   } catch (error: any) {
     console.error('Ingredient search error:', error)
-    return NextResponse.json({ 
-      ok: false, 
-      error: 'Internal server error' 
-    }, { status: 500 })
+    return createErrorResponse(
+      'Internal server error',
+      500,
+      'INTERNAL_ERROR',
+      error.message
+    )
   }
 }
 
 // Batch search endpoint
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
-    const { queries = [] } = body
-
-    if (!Array.isArray(queries) || queries.length === 0) {
-      return NextResponse.json({
-        ok: false,
-        error: 'Queries array required'
-      }, { status: 400 })
+    // Validate request body with zod
+    const validation = await validateRequestBody(req, batchSearchSchema)
+    if (!validation.success) {
+      return createErrorResponse(validation.error, 400, 'VALIDATION_ERROR')
     }
+
+    const { queries, limit } = validation.data
 
     const results = await Promise.all(
       queries.map(async (query: string) => {
-        const result = await database.searchIngredients(query, 5)
+        const result = await database.searchIngredients(query, limit)
         return {
           query,
           success: result.success,
-          data: result.data || [],
-          source: result.source
+          ingredients: result.data || [],
+          source: result.source,
+          error: result.success ? undefined : result.error
         }
       })
     )
 
-    return NextResponse.json({
-      ok: true,
+    return createSuccessResponse({
       results,
-      total_queries: queries.length
+      total_queries: queries.length,
+      successful_queries: results.filter(r => r.success).length
     })
+    
   } catch (error: any) {
     console.error('Batch ingredient search error:', error)
-    return NextResponse.json({
-      ok: false,
-      error: 'Batch search failed'
-    }, { status: 500 })
+    return createErrorResponse(
+      'Batch search failed',
+      500,
+      'BATCH_ERROR',
+      error.message
+    )
   }
 }

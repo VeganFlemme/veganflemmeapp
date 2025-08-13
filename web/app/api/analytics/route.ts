@@ -1,7 +1,39 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
+import { z } from 'zod'
+import { validateRequestBody, createErrorResponse, createSuccessResponse } from '@/lib/api-utils'
+
+// Zod schemas for validation
+const userProfileSchema = z.object({
+  gender: z.enum(['male', 'female']).optional(),
+  activityLevel: z.number().min(1.2).max(2.5).default(1.5),
+  age: z.number().int().min(18).max(100).optional(),
+  weight: z.number().min(40).max(200).optional(),
+  height: z.number().min(140).max(220).optional(),
+}).optional()
+
+const dailyNutritionSchema = z.object({
+  energy_kcal: z.number().min(0).default(0),
+  protein_g: z.number().min(0).default(0),
+  carbs_g: z.number().min(0).default(0),
+  fat_g: z.number().min(0).default(0),
+  fiber_g: z.number().min(0).default(0),
+  b12_ug: z.number().min(0).default(0),
+  vitamin_d_ug: z.number().min(0).default(0),
+  calcium_mg: z.number().min(0).default(0),
+  iron_mg: z.number().min(0).default(0),
+  zinc_mg: z.number().min(0).default(0),
+  iodine_ug: z.number().min(0).default(0),
+  selenium_ug: z.number().min(0).default(0),
+  ala_g: z.number().min(0).default(0),
+}).partial()
+
+const analyticsRequestSchema = z.object({
+  weeklyPlan: z.array(dailyNutritionSchema).min(1).max(7),
+  userProfile: userProfileSchema,
+})
 
 interface NutrientAnalysis {
   current: number
@@ -203,14 +235,13 @@ function generateRecommendations(analyses: Record<string, NutrientAnalysis>): st
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
-    const { weeklyPlan, userProfile } = body
-    
-    if (!weeklyPlan || !Array.isArray(weeklyPlan)) {
-      return NextResponse.json({
-        error: 'Invalid request: weeklyPlan array required'
-      }, { status: 400 })
+    // Validate request body with zod
+    const validation = await validateRequestBody(req, analyticsRequestSchema)
+    if (!validation.success) {
+      return createErrorResponse(validation.error, 400, 'VALIDATION_ERROR')
     }
+
+    const { weeklyPlan, userProfile } = validation.data
     
     // Determine targets based on user profile
     let targets = { ...nutrientTargets.default }
@@ -233,15 +264,13 @@ export async function POST(req: NextRequest) {
     const daysWithData = weeklyPlan.filter(day => day && typeof day === 'object').length
     
     if (daysWithData === 0) {
-      return NextResponse.json({
-        error: 'No valid nutrition data found in weekly plan'
-      }, { status: 400 })
+      return createErrorResponse('No valid nutrition data found in weekly plan', 400, 'NO_DATA')
     }
     
     // Sum up nutrients across all days
     Object.keys(targets).forEach(nutrient => {
       const total = weeklyPlan.reduce((sum, day) => {
-        return sum + (day?.[nutrient] || 0)
+        return sum + ((day as any)?.[nutrient] || 0)
       }, 0)
       weeklyAverages[nutrient] = total / daysWithData
     })
@@ -269,7 +298,7 @@ export async function POST(req: NextRequest) {
         Object.fromEntries(
           Object.entries(targets).map(([nutrient, target]) => [
             nutrient,
-            analyzeNutrient(day[nutrient] || 0, target, nutrient)
+            analyzeNutrient((day as any)[nutrient] || 0, target, nutrient)
           ])
         )
       ) : 0
@@ -283,24 +312,24 @@ export async function POST(req: NextRequest) {
       recommendations
     }
     
-    return NextResponse.json({
-      ok: true,
-      analytics,
-      meta: {
+    return createSuccessResponse(
+      { analytics },
+      {
         analyzed_days: daysWithData,
         targets_used: targets,
         analysis_date: new Date().toISOString(),
         version: '1.0.0'
       }
-    })
+    )
     
   } catch (error: any) {
     console.error('Analytics calculation error:', error)
     
-    return NextResponse.json({
-      ok: false,
-      error: 'Analytics calculation failed',
-      details: error.message
-    }, { status: 500 })
+    return createErrorResponse(
+      'Analytics calculation failed',
+      500,
+      'CALCULATION_ERROR',
+      error.message
+    )
   }
 }
