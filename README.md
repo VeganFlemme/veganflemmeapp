@@ -1,3 +1,68 @@
+# VeganFlemme App
+
+A comprehensive vegan meal planning application with nutritional optimization, built with Next.js 14 App Router and FastAPI.
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js 18+ and npm
+- Python 3.11+ (for solver service)
+- PostgreSQL database (or Supabase)
+
+### Development Setup
+
+1. **Clone and setup web app**
+   ```bash
+   git clone https://github.com/VeganFlemme/veganflemmeapp.git
+   cd veganflemmeapp/web
+   npm install
+   cp .env.example .env.local
+   # Edit .env.local with your environment variables
+   npm run dev
+   ```
+
+2. **Setup solver service** (optional)
+   ```bash
+   cd ../solver
+   python -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   uvicorn main:app --reload --port 8000
+   ```
+
+### Development Commands
+```bash
+# Web development
+npm run dev          # Start development server
+npm run build        # Build for production  
+npm run typecheck    # TypeScript validation
+npm run lint         # ESLint linting
+
+# Solver development
+uvicorn main:app --reload  # Start API server
+ruff check .              # Lint Python code
+```
+
+## 🏗️ Architecture
+
+- **Web**: Next.js 14 + TypeScript (strict) + Tailwind CSS
+- **Solver**: FastAPI + OR-Tools optimization
+- **Database**: Supabase (PostgreSQL) with CIQUAL nutrition data
+- **Auth**: Supabase Auth with Row Level Security
+
+## 🔧 Environment Variables
+
+See `web/.env.example` for complete configuration. Key variables:
+
+- `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL (client-safe)
+- `SUPABASE_SERVICE_ROLE_KEY` - Admin key (server-only, bypasses RLS)
+- `SOLVER_URL` - FastAPI solver service endpoint
+- `DATABASE_URL` - PostgreSQL connection string
+
+⚠️ **Security**: Never expose service role key to client. Use proper client/server separation.
+
+---
+
 # VeganFlemme — Générateur de Plans Alimentaires Végans
 
 > **Statut**: MVP Démo Fonctionnel  
