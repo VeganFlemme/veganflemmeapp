@@ -1,8 +1,28 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
+import { z } from 'zod'
 import { getRecipes } from '@/lib/database'
+import { validateRequestBody, createErrorResponse, createSuccessResponse } from '@/lib/api-utils'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+
+// Zod schemas for validation
+const mealSlotSchema = z.object({
+  recipeId: z.string().optional(),
+  servings: z.number().min(0.1).max(10).default(1),
+  title: z.string().optional(),
+})
+
+const dayPlanSchema = z.object({
+  breakfast: mealSlotSchema.optional(),
+  lunch: mealSlotSchema.optional(),
+  dinner: mealSlotSchema.optional(),
+  snack: mealSlotSchema.optional(),
+})
+
+const shoppingListSchema = z.object({
+  plan: z.array(dayPlanSchema).min(1).max(7),
+})
 
 interface MealSlot {
   recipeId?: string
@@ -19,14 +39,13 @@ interface DayPlan {
 
 export async function POST(req: NextRequest) {
   try {
-    const { plan } = await req.json()
-    
-    if (!plan || !Array.isArray(plan)) {
-      return NextResponse.json({ 
-        ok: false, 
-        error: 'Invalid plan data' 
-      }, { status: 400 })
+    // Validate request body with zod
+    const validation = await validateRequestBody(req, shoppingListSchema)
+    if (!validation.success) {
+      return createErrorResponse(validation.error, 400, 'VALIDATION_ERROR')
     }
+
+    const { plan } = validation.data
 
     // Extract all recipe IDs from the plan
     const recipeIds = new Set<string>()
@@ -44,8 +63,7 @@ export async function POST(req: NextRequest) {
     // Generate shopping list
     const shoppingList = generateDemoShoppingList(Array.from(recipeIds), recipeServings)
 
-    return NextResponse.json({
-      ok: true,
+    return createSuccessResponse({
       shoppingList,
       totalItems: shoppingList.length,
       categories: [...new Set(shoppingList.map(item => item.category))]
@@ -53,10 +71,12 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error('Shopping list generation error:', error)
-    return NextResponse.json({ 
-      ok: false, 
-      error: 'Internal server error' 
-    }, { status: 500 })
+    return createErrorResponse(
+      'Shopping list generation failed',
+      500,
+      'GENERATION_ERROR',
+      error.message
+    )
   }
 }
 

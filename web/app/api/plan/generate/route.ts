@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from 'next/server'
 import { getEnvironmentConfig } from '@/lib/environment'
+import { fetchWithTimeout } from '@/lib/api-utils'
 
 async function findVeganRecipes(maxReadyTime: number = 30, apiKey: string) {
   const url = new URL('https://api.spoonacular.com/recipes/complexSearch')
@@ -11,9 +12,9 @@ async function findVeganRecipes(maxReadyTime: number = 30, apiKey: string) {
   url.searchParams.set('maxReadyTime', String(maxReadyTime))
   url.searchParams.set('apiKey', apiKey)
   
-  const res = await fetch(url.toString(), { 
+  const res = await fetchWithTimeout(url.toString(), { 
     cache: 'no-store',
-    signal: AbortSignal.timeout(10000) // 10 second timeout
+    timeout: 10000 // 10 second timeout
   })
   
   if (!res.ok) throw new Error(`Spoonacular error ${res.status}`)
@@ -22,9 +23,9 @@ async function findVeganRecipes(maxReadyTime: number = 30, apiKey: string) {
 
 async function testSolverConnectivity(solverUrl: string): Promise<boolean> {
   try {
-    const response = await fetch(`${solverUrl}/health`, { 
+    const response = await fetchWithTimeout(`${solverUrl}/health`, { 
       cache: 'no-store',
-      signal: AbortSignal.timeout(5000)
+      timeout: 5000
     })
     return response.ok
   } catch {
@@ -102,7 +103,7 @@ export async function POST(req: NextRequest) {
       
       if (solverHealthy) {
         try {
-          const resp = await fetch(`${config.services.solver.url}/solve`, {
+          const resp = await fetchWithTimeout(`${config.services.solver.url}/solve`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -112,7 +113,7 @@ export async function POST(req: NextRequest) {
               weights: { nutri: 1.0, time: 0.2, cost: 0.2 },
               dislikes: []
             }),
-            signal: AbortSignal.timeout(30000) // 30 second timeout
+            timeout: 30000 // 30 second timeout
           })
 
           if (resp.ok) {

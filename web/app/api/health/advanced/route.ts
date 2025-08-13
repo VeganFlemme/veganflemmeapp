@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getEnvironmentConfig } from '@/lib/environment'
+import { fetchWithTimeout, SECURITY_HEADERS } from '@/lib/api-utils'
 
 async function testServiceWithMetrics(name: string, url: string, timeout: number = 5000) {
   const startTime = Date.now()
