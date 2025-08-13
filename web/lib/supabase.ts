@@ -273,4 +273,4 @@ export const db = {
   }
 }
 
-export default supabase
+export default supabaseClient;

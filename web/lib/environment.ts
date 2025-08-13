@@ -1,33 +1,39 @@
 /**
  * Production Environment Configuration and Validation
  * Handles graceful fallback when services are unavailable
+ * 
+ * @deprecated - Use lib/env.server.ts and lib/env.client.ts instead
+ * This file is kept for backward compatibility but should be phased out
  */
+
+import { env as serverEnv, validateServerEnv } from './env.server';
+import { env as clientEnv, validateClientEnv } from './env.client';
 
 export interface EnvironmentConfig {
   production: boolean
   services: {
     supabase: {
-      url?: string
-      anonKey?: string
-      serviceRoleKey?: string
+      url: string | undefined
+      anonKey: string | undefined
+      serviceRoleKey: string | undefined
       configured: boolean
       adminConfigured: boolean
     }
     database: {
-      url?: string
+      url: string | undefined
       configured: boolean
     }
     solver: {
-      url?: string
+      url: string | undefined
       configured: boolean
     }
     spoonacular: {
-      key?: string
+      key: string | undefined
       configured: boolean
     }
     openai: {
-      key?: string
-      model?: string
+      key: string | undefined
+      model: string | undefined
       configured: boolean
     }
   }
@@ -36,31 +42,31 @@ export interface EnvironmentConfig {
 
 export function getEnvironmentConfig(): EnvironmentConfig {
   const config: EnvironmentConfig = {
-    production: process.env.NODE_ENV === 'production',
+    production: serverEnv.isProduction,
     services: {
       supabase: {
-        url: process.env.NEXT_PUBLIC_SUPABASE_URL,
-        anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-        serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
-        configured: !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
-        adminConfigured: !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
+        url: clientEnv.supabase.url,
+        anonKey: clientEnv.supabase.anonKey,
+        serviceRoleKey: serverEnv.supabase.serviceRoleKey,
+        configured: clientEnv.supabase.configured,
+        adminConfigured: serverEnv.supabase.adminConfigured
       },
       database: {
-        url: process.env.DATABASE_URL,
-        configured: !!process.env.DATABASE_URL
+        url: serverEnv.database.url,
+        configured: serverEnv.database.configured
       },
       solver: {
-        url: process.env.SOLVER_URL,
-        configured: !!process.env.SOLVER_URL
+        url: serverEnv.solver.url,
+        configured: serverEnv.solver.configured
       },
       spoonacular: {
-        key: process.env.SPOONACULAR_KEY,
-        configured: !!process.env.SPOONACULAR_KEY
+        key: serverEnv.spoonacular.key,
+        configured: serverEnv.spoonacular.configured
       },
       openai: {
-        key: process.env.OPENAI_API_KEY,
-        model: process.env.OPENAI_MODEL || 'gpt-4',
-        configured: !!process.env.OPENAI_API_KEY
+        key: serverEnv.openai.key,
+        model: serverEnv.openai.model,
+        configured: serverEnv.openai.configured
       }
     },
     mode: 'demo'
@@ -83,48 +89,14 @@ export function validateEnvironment(): {
   issues: string[]
   recommendations: string[]
 } {
-  const config = getEnvironmentConfig()
-  const issues: string[] = []
-  const recommendations: string[] = []
-
-  // Critical services for production
-  if (config.production) {
-    if (!config.services.supabase.configured) {
-      issues.push('Supabase configuration missing (NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY)')
-      recommendations.push('Configure Supabase environment variables for authentication')
-    }
-
-    if (!config.services.supabase.adminConfigured) {
-      issues.push('Supabase admin configuration missing (SUPABASE_SERVICE_ROLE_KEY)')
-      recommendations.push('Configure SUPABASE_SERVICE_ROLE_KEY for admin operations and RLS bypass')
-    }
-
-    if (!config.services.database.configured) {
-      issues.push('Database configuration missing (DATABASE_URL)')
-      recommendations.push('Configure PostgreSQL/Supabase database connection')
-    }
-
-    if (!config.services.solver.configured) {
-      issues.push('Solver service configuration missing (SOLVER_URL)')
-      recommendations.push('Deploy FastAPI solver service and configure endpoint')
-    }
-
-    if (!config.services.spoonacular.configured) {
-      issues.push('Spoonacular API configuration missing (SPOONACULAR_KEY)')
-      recommendations.push('Get Spoonacular API key for recipe data')
-    }
-  }
-
-  // Development recommendations
-  if (config.mode === 'demo') {
-    recommendations.push('Application running in demo mode - configure services for full functionality')
-  }
-
+  const serverValidation = validateServerEnv();
+  const clientValidation = validateClientEnv();
+  
   return {
-    valid: issues.length === 0,
-    issues,
-    recommendations
-  }
+    valid: serverValidation.valid && clientValidation.valid,
+    issues: [...serverValidation.issues, ...clientValidation.issues],
+    recommendations: [...serverValidation.recommendations, ...clientValidation.recommendations]
+  };
 }
 
 // Runtime environment info for debugging
@@ -136,7 +108,7 @@ export function getEnvironmentInfo() {
     config,
     validation,
     runtime: {
-      nodeEnv: process.env.NODE_ENV,
+      nodeEnv: serverEnv.nodeEnv,
       platform: process.platform,
       nodeVersion: process.version,
       timestamp: new Date().toISOString()

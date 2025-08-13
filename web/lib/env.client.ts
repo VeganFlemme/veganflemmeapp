@@ -14,7 +14,7 @@ const clientEnvSchema = z.object({
 });
 
 // Parse and validate client environment variables
-let clientEnv: z.infer<typeof clientEnvSchema>;
+let clientEnv: z.infer<typeof clientEnvSchema> | null = null;
 
 try {
   clientEnv = clientEnvSchema.parse({

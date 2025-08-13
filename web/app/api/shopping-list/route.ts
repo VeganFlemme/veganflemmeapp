@@ -99,7 +99,7 @@ function adjustQuantity(quantity: string, multiplier: number): string {
   const match = quantity.match(/^(\d+(?:\.\d+)?)\s*(.*)$/)
   if (match) {
     const [, amount, unit] = match
-    const newAmount = Math.ceil(parseFloat(amount) * multiplier)
+    const newAmount = Math.ceil(parseFloat(amount || '0') * multiplier)
     return `${newAmount}${unit}`
   }
   return quantity

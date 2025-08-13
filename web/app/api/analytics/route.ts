@@ -186,15 +186,15 @@ function generateRecommendations(analyses: Record<string, NutrientAnalysis>): st
   })
   
   // General vegan nutrition recommendations
-  if (analyses.b12_ug?.percentage < 100) {
+  if ((analyses.b12_ug?.percentage ?? 0) < 100) {
     recommendations.push('Supplémentation B12 : 250μg/jour ou 2500μg/semaine')
   }
   
-  if (analyses.vitamin_d_ug?.percentage < 80) {
+  if ((analyses.vitamin_d_ug?.percentage ?? 0) < 80) {
     recommendations.push('Considérez un supplément de vitamine D3 végane (2000 UI/jour)')
   }
   
-  if (analyses.ala_g?.percentage < 90) {
+  if ((analyses.ala_g?.percentage ?? 0) < 90) {
     recommendations.push('Ajoutez 1 cuillère à soupe de graines de lin moulues par jour')
   }
   

@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     let authenticatedUserEmail: string | undefined
     const authHeader = req.headers.get('authorization')
     
-    if (authHeader) {
+    if (authHeader && supabase) {
       try {
         const token = authHeader.replace('Bearer ', '')
         const { data: { user } } = await supabase.auth.getUser(token)

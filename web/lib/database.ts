@@ -1,20 +1,20 @@
 import { Pool } from 'pg'
 import { db } from '@/lib/supabase'
+import { env } from '@/lib/env.server'
 
 // Database connection utility
 let pool: Pool | null = null
 
 export function getPool(): Pool | null {
-  const DATABASE_URL = process.env.DATABASE_URL
-  if (!DATABASE_URL) {
+  if (!env.database.configured) {
     console.warn('DATABASE_URL not configured - falling back to demo mode')
     return null
   }
 
   if (!pool) {
     pool = new Pool({
-      connectionString: DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+      connectionString: env.database.url,
+      ssl: env.isProduction ? { rejectUnauthorized: false } : false,
       max: 20,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,

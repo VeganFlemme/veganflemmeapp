@@ -49,6 +49,8 @@ export async function GET() {
     const serviceNames = ['solver', 'spoonacular', 'openfoodfacts']
     const serviceName = serviceNames[index]
     
+    if (!serviceName) return; // Skip if service name is undefined
+    
     if (result.status === 'fulfilled') {
       services[serviceName] = result.value
     } else {

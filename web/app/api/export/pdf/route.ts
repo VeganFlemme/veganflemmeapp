@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
   const { plan } = await req.json()
   const doc = new PDFDocument()
   const chunks: Buffer[] = []
-  doc.on('data', (c) => chunks.push(c))
+  doc.on('data', (c: Buffer) => chunks.push(c))
   doc.on('end', () => {})
 
   doc.fontSize(18).text('VeganFlemme — Semaine')
