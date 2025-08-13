@@ -1,36 +1,44 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js';
+import { env as clientEnv } from './env.client';
+import { env as serverEnv } from './env.server';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+// Client-side Supabase client (uses anon key, respects RLS)
+export function createSupabaseClient() {
+  if (!clientEnv.supabase.configured) {
+    console.warn('Supabase client configuration missing - auth features disabled');
+    return null;
+  }
 
-let supabase: any = null
-let supabaseAdmin: any = null
-
-// Only create Supabase client if environment variables are available
-if (supabaseUrl && supabaseAnonKey) {
-  supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  return createClient(clientEnv.supabase.url!, clientEnv.supabase.anonKey!, {
     auth: {
       autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: true
-    }
-  })
-} else {
-  console.warn('Supabase environment variables not configured - auth features disabled')
+      detectSessionInUrl: true,
+    },
+  });
 }
 
-// Create admin client with service role key (bypasses RLS)
-if (supabaseUrl && supabaseServiceKey) {
-  supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+// Server-side Supabase admin client (uses service role key, bypasses RLS)
+// This should ONLY be used in server-side code (API routes, server components)
+export function createSupabaseAdminClient() {
+  if (!clientEnv.supabase.url || !serverEnv.supabase.serviceRoleKey) {
+    console.warn('Supabase admin configuration missing - admin operations disabled');
+    return null;
+  }
+
+  return createClient(clientEnv.supabase.url, serverEnv.supabase.serviceRoleKey, {
     auth: {
       autoRefreshToken: false,
-      persistSession: false
-    }
-  })
+      persistSession: false,
+    },
+  });
 }
 
-export { supabase, supabaseAdmin }
+// Create client instances
+const supabaseClient = createSupabaseClient();
+const supabaseAdminClient = createSupabaseAdminClient();
+
+export { supabaseClient as supabase, supabaseAdminClient as supabaseAdmin };
 
 // Type definitions for our database schema
 export interface UserProfile {
@@ -84,24 +92,26 @@ export interface IngredientNutrients {
 // Auth helper functions
 export const auth = {
   signUp: async (email: string, password: string, userData?: Partial<UserProfile>) => {
-    if (!supabase) {
+    if (!supabaseClient) {
       return { data: null, error: { message: 'Supabase not configured' } }
     }
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await supabaseClient.auth.signUp({
       email,
       password,
-      options: {
-        data: userData
-      }
+      ...(userData && {
+        options: {
+          data: userData
+        }
+      })
     })
     return { data, error }
   },
 
   signIn: async (email: string, password: string) => {
-    if (!supabase) {
+    if (!supabaseClient) {
       return { data: null, error: { message: 'Supabase not configured' } }
     }
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
       email,
       password
     })
@@ -109,10 +119,10 @@ export const auth = {
   },
 
   signInWithMagicLink: async (email: string) => {
-    if (!supabase) {
+    if (!supabaseClient) {
       return { data: null, error: { message: 'Supabase not configured' } }
     }
-    const { data, error } = await supabase.auth.signInWithOtp({
+    const { data, error } = await supabaseClient.auth.signInWithOtp({
       email,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`
@@ -122,26 +132,26 @@ export const auth = {
   },
 
   signOut: async () => {
-    if (!supabase) {
+    if (!supabaseClient) {
       return { error: { message: 'Supabase not configured' } }
     }
-    const { error } = await supabase.auth.signOut()
+    const { error } = await supabaseClient.auth.signOut()
     return { error }
   },
 
   getUser: async () => {
-    if (!supabase) {
+    if (!supabaseClient) {
       return { user: null, error: { message: 'Supabase not configured' } }
     }
-    const { data: { user }, error } = await supabase.auth.getUser()
+    const { data: { user }, error } = await supabaseClient.auth.getUser()
     return { user, error }
   },
 
   getSession: async () => {
-    if (!supabase) {
+    if (!supabaseClient) {
       return { session: null, error: { message: 'Supabase not configured' } }
     }
-    const { data: { session }, error } = await supabase.auth.getSession()
+    const { data: { session }, error } = await supabaseClient.auth.getSession()
     return { session, error }
   }
 }
@@ -151,7 +161,7 @@ export const db = {
   // Plans
   savePlan: async (planData: any, userEmail?: string) => {
     // Use admin client for server-side operations to bypass RLS
-    const client = supabaseAdmin || supabase
+    const client = supabaseAdminClient || supabaseClient
     
     if (!client) {
       return { data: null, error: { message: 'Supabase not configured' } }
@@ -202,10 +212,10 @@ export const db = {
   },
 
   getUserPlans: async (userEmail: string) => {
-    if (!supabase) {
+    if (!supabaseClient) {
       return { data: [], error: { message: 'Supabase not configured' } }
     }
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('plans')
       .select('*')
       .eq('user_email', userEmail)
@@ -216,10 +226,10 @@ export const db = {
 
   // Ingredients search
   searchIngredients: async (query: string, limit: number = 10) => {
-    if (!supabase) {
+    if (!supabaseClient) {
       return { data: [], error: { message: 'Supabase not configured' } }
     }
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .rpc('search_ingredient', { 
         q: query 
       })
@@ -230,10 +240,10 @@ export const db = {
 
   // Get ingredient nutrition data
   getIngredientNutrition: async (ingredientId: string) => {
-    if (!supabase) {
+    if (!supabaseClient) {
       return { data: null, error: { message: 'Supabase not configured' } }
     }
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('ingredient_nutrients')
       .select('*')
       .eq('ingredient_id', ingredientId)
@@ -245,7 +255,7 @@ export const db = {
   // Health check
   healthCheck: async () => {
     // Use admin client for health checks to bypass RLS
-    const client = supabaseAdmin || supabase
+    const client = supabaseAdminClient || supabaseClient
     
     if (!client) {
       return { ok: false, error: { message: 'Supabase not configured' } }
