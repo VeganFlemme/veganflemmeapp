@@ -140,7 +140,11 @@ export async function GET(req: NextRequest) {
   }
   
   // Environment validation
-  const validation = {
+  const validation: {
+    valid: boolean;
+    issues: string[];
+    recommendations: string[];
+  } = {
     valid: config.services.database.configured && 
            config.services.solver.configured && 
            config.services.spoonacular.configured,

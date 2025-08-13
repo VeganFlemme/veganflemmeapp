@@ -92,7 +92,7 @@ export function ShoppingList({ plan, className = "" }: ShoppingListProps) {
 
   const groupedByCategory = shoppingList.reduce((acc, item) => {
     if (!acc[item.category]) acc[item.category] = []
-    acc[item.category].push(item)
+    acc[item.category]!.push(item)
     return acc
   }, {} as { [category: string]: ShoppingItem[] })
 
@@ -164,12 +164,12 @@ export function ShoppingList({ plan, className = "" }: ShoppingListProps) {
                     {category}
                   </Badge>
                   <span className="text-xs text-muted-foreground">
-                    {groupedByCategory[category].length} item{groupedByCategory[category].length > 1 ? 's' : ''}
+                    {groupedByCategory[category]!.length} item{groupedByCategory[category]!.length > 1 ? 's' : ''}
                   </span>
                 </div>
                 
                 <div className="grid gap-2">
-                  {groupedByCategory[category].map((item, index) => (
+                  {groupedByCategory[category]!.map((item, index) => (
                     <div 
                       key={`${category}-${index}`}
                       className="flex items-center justify-between p-2 bg-muted/50 rounded text-sm"

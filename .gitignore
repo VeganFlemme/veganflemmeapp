@@ -7,6 +7,8 @@ web/node_modules/
 solver/.venv/
 venv/
 env/
+solver_env/
+web/lib/python*/
 
 # Python cache and compiled files
 __pycache__/
@@ -55,6 +57,10 @@ yarn-error.log*
 .next/
 out/
 *.tsbuildinfo
+.vercel/
+.turbo/
+.pnpm-store/
+coverage/
 
 # Package manager lock files (optional - you may want to commit these)
 # package-lock.json

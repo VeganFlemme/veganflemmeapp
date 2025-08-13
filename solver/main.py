@@ -60,6 +60,11 @@ class SolveRequest(BaseModel):
 def health():
     return {"ok": True, "ts": time.time()}
 
+@app.get("/healthz")
+def healthz():
+    """Health check endpoint matching frontend expectations"""
+    return {"ok": True, "ts": time.time()}
+
 @app.post("/solve")
 def solve(req: SolveRequest):
     try:
