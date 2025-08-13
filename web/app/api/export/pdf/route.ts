@@ -1,4 +1,5 @@
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 import PDFDocument from 'pdfkit'
 import { NextRequest } from 'next/server'
 
